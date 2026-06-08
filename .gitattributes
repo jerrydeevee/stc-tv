@@ -1,0 +1,7 @@
+# Forceer LF-regeleinden voor bestanden die op Linux-servers worden uitgevoerd —
+# voorkomt "bad interpreter"-fouten door CRLF in shell-scripts/Python op Windows-checkouts
+*.sh    text eol=lf
+*.py    text eol=lf
+*.service text eol=lf
+*.conf.template text eol=lf
+*.yml   text eol=lf
