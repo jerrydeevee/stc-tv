@@ -1,0 +1,45 @@
+###############################################
+# Camping TV — MediaMTX RTMP ingest → HLS
+# Ontvangt OBS-streams via RTMP en zet ze om naar
+# lokale HLS, die de bestaande proxy ophaalt.
+###############################################
+
+logLevel: info
+logDestinations: [stdout]
+
+# RTMP ingest (OBS verbindt hiermee)
+rtmp: yes
+rtmpAddress: :1935
+rtmpEncryption: "no"
+
+# RTSP / WebRTC / SRT uitschakelen — alleen RTMP nodig
+rtsp: no
+webrtc: no
+srt: no
+
+# Ingebouwde HLS-server — proxy haalt hier de stream op
+hls: yes
+hlsAddress: 127.0.0.1:8889
+hlsAlwaysRemux: yes
+hlsVariant: mpegts
+hlsSegmentCount: 7
+hlsSegmentDuration: 2s
+hlsPartDuration: 200ms
+hlsSegmentMaxSize: 50M
+hlsAllowOrigins: ['*']
+hlsTrustedProxies: []
+moq: no
+
+# API voor live-status detectie door de proxy
+api: yes
+apiAddress: 127.0.0.1:9997
+
+# Geen webpagina/metrics nodig
+playback: no
+metrics: no
+pprof: no
+
+paths:
+  # Wildcard: elk lokaal kanaal krijgt zijn eigen stream-key,
+  # bv. rtmp://10.0.1.132/local3  (key wordt per kanaal gegenereerd)
+  all_others:

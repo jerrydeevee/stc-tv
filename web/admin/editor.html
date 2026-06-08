@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Camping TV — Kanaal Editor</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#111;color:#e0e0e0;font-family:'Segoe UI',sans-serif;font-size:14px}
+header{background:#1a1a2e;padding:16px 24px;display:flex;align-items:center;gap:16px;border-bottom:1px solid #333;position:sticky;top:0;z-index:10}
+header img{height:36px;opacity:.85}
+header h1{font-size:1.2rem;font-weight:600;color:#fff}
+header a{color:#888;text-decoration:none;font-size:.85rem;margin-left:auto;border:1px solid #444;padding:6px 14px;border-radius:6px}
+header a:hover{color:#fff;border-color:#666}
+main{max-width:1200px;margin:0 auto;padding:24px}
+section{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:20px;margin-bottom:20px}
+section h2{font-size:.95rem;text-transform:uppercase;letter-spacing:.06em;color:#888;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid #2a2a2a;display:flex;align-items:center;justify-content:space-between}
+section h2 small{font-size:.7rem;color:#555;text-transform:none;letter-spacing:0;font-weight:400}
+
+.field-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px}
+.field label{display:block;font-size:.72rem;color:#888;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px}
+.field input, .field select, .field textarea{
+  width:100%;background:#0d0d0d;border:1px solid #333;border-radius:6px;color:#eee;
+  padding:8px 10px;font-size:.85rem;font-family:inherit
+}
+.field input:focus, .field select:focus, .field textarea:focus{outline:none;border-color:#4a9fd4}
+.field .hint{font-size:.68rem;color:#555;margin-top:3px}
+
+table{width:100%;border-collapse:collapse}
+th{text-align:left;padding:8px 10px;font-size:.72rem;text-transform:uppercase;color:#666;border-bottom:1px solid #2a2a2a;letter-spacing:.04em}
+td{padding:8px 10px;border-bottom:1px solid #1a1a1a;font-size:.85rem;vertical-align:middle}
+tr:hover td{background:#212121}
+.ch-logo{width:34px;height:24px;object-fit:contain;border-radius:3px;background:#0d0d0d}
+.ch-name-cell{display:flex;align-items:center;gap:10px}
+.url-cell{max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#888;font-family:Consolas,monospace;font-size:.78rem}
+.btn{background:#2a2a2a;border:1px solid #3a3a3a;color:#ccc;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:.78rem;transition:.15s}
+.btn:hover{background:#353535;color:#fff}
+.btn.primary{background:#4a9fd4;border-color:#4a9fd4;color:#fff}
+.btn.primary:hover{background:#5badE0}
+.btn.danger{background:#3a1f1f;border-color:#5a2f2f;color:#e08a8a}
+.btn.danger:hover{background:#4a2828}
+.btn.small{padding:4px 9px;font-size:.72rem}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.row-actions{display:flex;gap:6px}
+
+.toolbar{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+.toolbar .spacer{flex:1}
+
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:flex-start;justify-content:center;z-index:100;overflow:auto;padding:40px 16px}
+.modal-bg.open{display:flex}
+.modal{background:#1c1c1c;border:1px solid #333;border-radius:12px;padding:26px;width:100%;max-width:640px}
+.modal h3{font-size:1.05rem;margin-bottom:18px;color:#fff}
+.modal .field-grid{margin-bottom:6px}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px;padding-top:16px;border-top:1px solid #2a2a2a}
+.logo-preview-row{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+.logo-preview{width:64px;height:46px;object-fit:contain;background:#0d0d0d;border:1px solid #333;border-radius:6px;padding:4px}
+
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#222;border:1px solid #444;color:#eee;padding:12px 22px;border-radius:8px;font-size:.85rem;z-index:200;opacity:0;transition:opacity .25s, transform .25s;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(-6px)}
+.toast.error{border-color:#a44;background:#2a1a1a;color:#f0a0a0}
+.toast.success{border-color:#4a9}
+
+.section-foot{display:flex;justify-content:flex-end;margin-top:16px}
+.help{font-size:.72rem;color:#666;margin-top:10px;line-height:1.5}
+.badge{display:inline-block;background:#2a2a2a;color:#888;border-radius:4px;padding:1px 7px;font-size:.68rem;margin-left:6px}
+</style>
+</head>
+<body>
+<header>
+  <img src="/logo.png" alt="Zwanemeer">
+  <h1>Kanaal &amp; Stream Editor <span style="font-size:.7rem;font-weight:400;color:#666;text-transform:none;letter-spacing:0">— STC-TV by DVC-it</span></h1>
+  <a href="/admin/">← Monitor</a>
+</header>
+
+<main>
+
+  <section id="sec-global">
+    <h2>Globale proxy-instellingen <small>gelden voor alle kanalen, tenzij per kanaal overschreven</small></h2>
+    <div class="field-grid" id="global-fields"></div>
+    <div class="section-foot">
+      <button class="btn primary" id="btn-save-global">Globale instellingen opslaan</button>
+    </div>
+    <div class="help">Wijzigingen herstarten het proxy-proces automatisch (duurt ~2-5 seconden; lopende streams herverbinden vanzelf).</div>
+  </section>
+
+  <section id="sec-channels">
+    <h2>Kanalen <small id="ch-count"></small></h2>
+    <div class="toolbar">
+      <button class="btn primary" id="btn-add-channel">+ Nieuw kanaal</button>
+      <span class="spacer"></span>
+      <input type="text" id="ch-filter" placeholder="Zoek op naam of nummer…" style="background:#0d0d0d;border:1px solid #333;border-radius:6px;color:#eee;padding:7px 12px;font-size:.82rem;width:220px">
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:50px">#</th>
+          <th>Naam</th>
+          <th>Stream-URL</th>
+          <th style="width:140px">EPG tvg-id</th>
+          <th style="width:170px">Acties</th>
+        </tr>
+      </thead>
+      <tbody id="ch-table"></tbody>
+    </table>
+  </section>
+
+</main>
+
+<!-- Kanaal bewerken / toevoegen modal -->
+<div class="modal-bg" id="modal-bg">
+  <div class="modal">
+    <h3 id="modal-title">Kanaal bewerken</h3>
+
+    <div class="logo-preview-row">
+      <img class="logo-preview" id="modal-logo-preview" src="" alt="logo">
+      <div>
+        <input type="file" id="modal-logo-file" accept="image/*" style="font-size:.8rem;color:#888">
+        <div class="hint">PNG/JPG/SVG/WebP — wordt direct geüpload bij opslaan</div>
+      </div>
+    </div>
+
+    <div class="field-grid">
+      <div class="field">
+        <label>Kanaalnummer</label>
+        <input type="number" id="m-num" min="1">
+      </div>
+      <div class="field" style="grid-column: span 2">
+        <label>Naam</label>
+        <input type="text" id="m-name" placeholder="bijv. NPO 1">
+      </div>
+      <div class="field">
+        <label>Type</label>
+        <select id="m-type">
+          <option value="remote">Extern (m3u8-bron)</option>
+          <option value="local">Lokaal (OBS via RTMP)</option>
+        </select>
+      </div>
+      <div class="field" style="grid-column: span 3" id="m-url-wrap">
+        <label>Stream-URL (m3u8)</label>
+        <input type="text" id="m-url" placeholder="http://…/index.m3u8">
+      </div>
+      <div class="field" style="grid-column: span 3;display:none" id="m-streamkey-wrap">
+        <label>Stream-key (RTMP)</label>
+        <input type="text" id="m-streamkey" placeholder="bijv. local28">
+        <div class="hint" id="m-rtmp-hint">Publiceer in OBS naar: rtmp://10.0.1.132/&lt;stream-key&gt;</div>
+      </div>
+      <div class="field">
+        <label>EPG tvg-id</label>
+        <input type="text" id="m-tvg" placeholder="bijv. npo1.nl">
+        <div class="hint">Koppeling met XMLTV-bron voor programma-info</div>
+      </div>
+      <div class="field" style="grid-column: span 2">
+        <label>Notitie</label>
+        <input type="text" id="m-notes" placeholder="interne opmerking (optioneel)">
+      </div>
+    </div>
+
+    <div id="m-local-section" style="display:none">
+      <h3 style="font-size:.85rem;color:#888;margin:22px 0 12px;text-transform:uppercase;letter-spacing:.04em;border-top:1px solid #2a2a2a;padding-top:18px">
+        Lokaal kanaal — startkanaal &amp; splash-screen
+      </h3>
+      <div class="field-grid">
+        <div class="field">
+          <label><input type="checkbox" id="m-start-channel" style="width:auto;display:inline-block;margin-right:6px">Startkanaal (eerst getoond bij opstarten)</label>
+          <div class="hint">Slechts één kanaal kan startkanaal zijn — andere worden automatisch uitgevinkt</div>
+        </div>
+        <div class="field">
+          <label>Splash-interval (s)</label>
+          <input type="number" id="m-splash-interval" min="3" placeholder="8">
+          <div class="hint">Wisseltijd tussen splash-afbeeldingen wanneer geen uitzending actief is</div>
+        </div>
+      </div>
+      <div class="field" style="margin-top:10px">
+        <label>Splash-afbeeldingen (HD-formaat)</label>
+        <input type="file" id="m-splash-file" accept="image/*" multiple style="font-size:.8rem;color:#888">
+        <div class="hint">Worden getoond als diashow zolang er geen actieve OBS-uitzending is op dit kanaal</div>
+        <div id="m-splash-preview" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px"></div>
+      </div>
+    </div>
+
+    <h3 style="font-size:.85rem;color:#888;margin:22px 0 12px;text-transform:uppercase;letter-spacing:.04em;border-top:1px solid #2a2a2a;padding-top:18px">
+      Per-kanaal overrides <span class="badge">optioneel</span>
+    </h3>
+    <div class="field-grid">
+      <div class="field">
+        <label>Poll-interval (s)</label>
+        <input type="number" id="m-poll" min="1" placeholder="globaal">
+      </div>
+      <div class="field">
+        <label>Actief-TTL (s)</label>
+        <input type="number" id="m-ttl" min="1" placeholder="globaal">
+      </div>
+      <div class="field">
+        <label>Bron-timeout (s)</label>
+        <input type="number" id="m-utimeout" min="1" placeholder="globaal">
+      </div>
+      <div class="field">
+        <label>Segment-timeout (s)</label>
+        <input type="number" id="m-ftimeout" min="1" placeholder="globaal">
+      </div>
+      <div class="field" style="grid-column: span 2">
+        <label>User-Agent</label>
+        <input type="text" id="m-ua" placeholder="globaal (VLC/3.0 LibVLC/3.0)">
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn" id="btn-modal-cancel">Annuleren</button>
+      <button class="btn primary" id="btn-modal-save">Opslaan</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = '/stream/admin-api';
+let configData = null;   // { global, channels, defaults }
+let editingNum = null;   // null = nieuw kanaal
+let logoFile   = null;
+let splashFiles = [];
+let splashImages = [];   // bestaande, reeds geüploade afbeeldingen voor het kanaal in bewerking
+
+async function readJsonOrThrow(r){
+  const text = await r.text();
+  try {
+    return JSON.parse(text);
+  } catch(e){
+    throw new Error(`Server gaf geen geldig antwoord (HTTP ${r.status}). Mogelijk een time-out of serverfout — probeer het opnieuw.`);
+  }
+}
+
+function toast(msg, type){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (type ? ' '+type : '');
+  clearTimeout(toast._tm);
+  toast._tm = setTimeout(()=> t.classList.remove('show'), 3500);
+}
+
+const GLOBAL_FIELDS = [
+  {key:'seg_cache_max',    label:'Segment cache (max items)',  hint:'Aantal TS-segmenten dat in geheugen blijft (LRU)'},
+  {key:'poll_interval',    label:'Poll-interval (s)',          hint:'Hoe vaak de playlist van actieve kanalen ververst wordt'},
+  {key:'active_ttl',       label:'Actief-TTL (s)',             hint:'Hoe lang een kanaal "actief" blijft zonder kijkers'},
+  {key:'upstream_timeout', label:'Bron-timeout (s)',           hint:'Timeout bij ophalen van de m3u8-playlist'},
+  {key:'fetch_timeout',    label:'Segment-timeout (s)',        hint:'Timeout bij ophalen van losse TS-segmenten'},
+  {key:'user_agent',       label:'User-Agent',                 hint:'Header waarmee de proxy zich bij de bron meldt', text:true},
+];
+
+function renderGlobalFields(){
+  const wrap = document.getElementById('global-fields');
+  wrap.innerHTML = '';
+  GLOBAL_FIELDS.forEach(f=>{
+    const div = document.createElement('div');
+    div.className = 'field';
+    const val = configData.global[f.key] ?? '';
+    div.innerHTML = `
+      <label>${f.label}</label>
+      <input type="${f.text ? 'text' : 'number'}" id="g-${f.key}" value="${val}">
+      <div class="hint">${f.hint}</div>`;
+    wrap.appendChild(div);
+  });
+}
+
+function collectGlobalFields(){
+  const g = {};
+  GLOBAL_FIELDS.forEach(f=>{
+    const el = document.getElementById('g-'+f.key);
+    let v = el.value.trim();
+    if(f.text){ g[f.key] = v || configData.defaults[f.key]; }
+    else { g[f.key] = v === '' ? configData.defaults[f.key] : Number(v); }
+  });
+  return g;
+}
+
+function renderChannelTable(filter){
+  const tbody = document.getElementById('ch-table');
+  tbody.innerHTML = '';
+  const f = (filter||'').toLowerCase().trim();
+  const list = configData.channels
+    .filter(ch => !f || ch.name.toLowerCase().includes(f) || String(ch.num).includes(f))
+    .sort((a,b)=> a.num - b.num);
+  document.getElementById('ch-count').textContent = `${configData.channels.length} kanalen`;
+  list.forEach(ch=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${ch.num}</td>
+      <td><div class="ch-name-cell"><img class="ch-logo" src="${ch.logo || '/logos/'+ch.num+'.png'}" alt="" onerror="this.style.visibility='hidden'"><span>${escapeHtml(ch.name)}</span></div></td>
+      <td><span class="url-cell" title="${escapeHtml(ch.url)}">${escapeHtml(ch.url)}</span></td>
+      <td>${ch.type === 'local' ? '<span class="badge">Lokaal (OBS)</span>' + (ch.is_start_channel ? ' <span class="badge" style="background:#214a2e;color:#9ad9a8">Start</span>' : '') : (ch.tvg_id ? escapeHtml(ch.tvg_id) : '<span style="color:#555">—</span>')}</td>
+      <td>
+        <div class="row-actions">
+          <button class="btn small" data-act="edit" data-num="${ch.num}">Bewerken</button>
+          <button class="btn small danger" data-act="delete" data-num="${ch.num}">Verwijderen</button>
+        </div>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll('[data-act="edit"]').forEach(b=>
+    b.addEventListener('click', ()=> openModal(parseInt(b.dataset.num))));
+  tbody.querySelectorAll('[data-act="delete"]').forEach(b=>
+    b.addEventListener('click', ()=> deleteChannel(parseInt(b.dataset.num))));
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ── Modal ────────────────────────────────────────────────────────────────────
+const modalBg = document.getElementById('modal-bg');
+
+function applyTypeUI(type, num){
+  const isLocal = type === 'local';
+  document.getElementById('m-url-wrap').style.display = isLocal ? 'none' : '';
+  document.getElementById('m-streamkey-wrap').style.display = isLocal ? '' : 'none';
+  document.getElementById('m-local-section').style.display = isLocal ? '' : 'none';
+  if(isLocal){
+    const keyEl = document.getElementById('m-streamkey');
+    if(!keyEl.value.trim()) keyEl.value = `local${num}`;
+    document.getElementById('m-rtmp-hint').textContent =
+      `Publiceer in OBS naar: rtmp://10.0.1.132/${keyEl.value.trim() || 'local'+num}  (HLS-uitvoer wordt automatisch gegenereerd)`;
+  }
+}
+
+document.getElementById('m-type').addEventListener('change', e=>{
+  applyTypeUI(e.target.value, parseInt(document.getElementById('m-num').value) || editingNum || 1);
+});
+document.getElementById('m-streamkey').addEventListener('input', e=>{
+  document.getElementById('m-rtmp-hint').textContent =
+    `Publiceer in OBS naar: rtmp://10.0.1.132/${e.target.value.trim() || 'local'}  (HLS-uitvoer wordt automatisch gegenereerd)`;
+});
+
+function renderSplashPreview(){
+  const wrap = document.getElementById('m-splash-preview');
+  wrap.innerHTML = '';
+  splashImages.forEach(src=>{
+    const box = document.createElement('div');
+    box.style.cssText = 'position:relative;width:96px;height:54px';
+    box.innerHTML = `<img src="${src}" style="width:100%;height:100%;object-fit:cover;border-radius:5px;border:1px solid #333">`;
+    wrap.appendChild(box);
+  });
+  splashFiles.forEach(f=>{
+    const box = document.createElement('div');
+    box.style.cssText = 'position:relative;width:96px;height:54px';
+    const img = document.createElement('img');
+    img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:5px;border:1px solid #4a9fd4';
+    const reader = new FileReader();
+    reader.onload = ev => { img.src = ev.target.result; };
+    reader.readAsDataURL(f);
+    box.appendChild(img);
+    const tag = document.createElement('div');
+    tag.textContent = 'nieuw';
+    tag.style.cssText = 'position:absolute;bottom:2px;right:2px;background:#4a9fd4;color:#fff;font-size:.6rem;padding:1px 5px;border-radius:3px';
+    box.appendChild(tag);
+    wrap.appendChild(box);
+  });
+}
+
+document.getElementById('m-splash-file').addEventListener('change', e=>{
+  splashFiles = splashFiles.concat(Array.from(e.target.files));
+  renderSplashPreview();
+});
+
+function openModal(num){
+  editingNum = num;
+  logoFile = null;
+  splashFiles = [];
+  splashImages = [];
+  document.getElementById('modal-logo-file').value = '';
+  document.getElementById('m-splash-file').value = '';
+  const isNew = num === null;
+  document.getElementById('modal-title').textContent = isNew ? 'Nieuw kanaal toevoegen' : `Kanaal ${num} bewerken`;
+
+  let ch = isNew ? null : configData.channels.find(c=>c.num===num);
+  const nextNum = isNew ? (Math.max(0, ...configData.channels.map(c=>c.num)) + 1) : num;
+
+  setVal('m-num', nextNum);
+  document.getElementById('m-num').disabled = !isNew;
+  setVal('m-name', ch?.name || '');
+  setVal('m-url', ch?.url || '');
+  setVal('m-tvg', ch?.tvg_id || '');
+  setVal('m-notes', ch?.notes || '');
+  setVal('m-poll', ch?.poll_interval ?? '');
+  setVal('m-ttl', ch?.active_ttl ?? '');
+  setVal('m-utimeout', ch?.upstream_timeout ?? '');
+  setVal('m-ftimeout', ch?.fetch_timeout ?? '');
+  setVal('m-ua', ch?.user_agent ?? '');
+
+  const type = ch?.type || 'remote';
+  document.getElementById('m-type').value = type;
+  setVal('m-streamkey', ch?.stream_key || (type === 'local' ? `local${nextNum}` : ''));
+  document.getElementById('m-start-channel').checked = !!ch?.is_start_channel;
+  setVal('m-splash-interval', ch?.splash_interval ?? '');
+  applyTypeUI(type, nextNum);
+
+  if(type === 'local' && ch?.num){
+    fetch(`${API}/splash?ch=${ch.num}&t=${Date.now()}`)
+      .then(r=>r.json())
+      .then(d=>{ splashImages = d.images || []; renderSplashPreview(); })
+      .catch(()=>{});
+  } else {
+    renderSplashPreview();
+  }
+
+  document.getElementById('modal-logo-preview').src = (ch?.logo) || `/logos/${nextNum}.png`;
+  document.getElementById('modal-logo-preview').onerror = function(){ this.src=''; this.style.visibility='hidden'; };
+  document.getElementById('modal-logo-preview').style.visibility = 'visible';
+
+  modalBg.classList.add('open');
+}
+function setVal(id, v){ document.getElementById(id).value = (v === null || v === undefined) ? '' : v; }
+function numOrNull(id){ const v = document.getElementById(id).value.trim(); return v === '' ? null : Number(v); }
+function strOrNull(id){ const v = document.getElementById(id).value.trim(); return v === '' ? null : v; }
+
+document.getElementById('btn-modal-cancel').addEventListener('click', ()=> modalBg.classList.remove('open'));
+modalBg.addEventListener('click', e=>{ if(e.target === modalBg) modalBg.classList.remove('open'); });
+
+document.getElementById('modal-logo-file').addEventListener('change', e=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  logoFile = file;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    document.getElementById('modal-logo-preview').src = ev.target.result;
+    document.getElementById('modal-logo-preview').style.visibility = 'visible';
+  };
+  reader.readAsDataURL(file);
+});
+
+document.getElementById('btn-modal-save').addEventListener('click', async ()=>{
+  const num = parseInt(document.getElementById('m-num').value);
+  const name = document.getElementById('m-name').value.trim();
+  const type = document.getElementById('m-type').value;
+  const url = document.getElementById('m-url').value.trim();
+  const streamKey = document.getElementById('m-streamkey').value.trim();
+  const isStartChannel = document.getElementById('m-start-channel').checked;
+
+  if(!num || num < 1){ toast('Vul een geldig kanaalnummer in', 'error'); return; }
+  if(!name){ toast('Vul een naam in', 'error'); return; }
+  if(type === 'remote'){
+    if(!/^https?:\/\//i.test(url)){ toast('Stream-URL moet met http:// of https:// beginnen', 'error'); return; }
+  } else {
+    if(!/^[a-zA-Z0-9_-]+$/.test(streamKey)){ toast('Stream-key mag alleen letters, cijfers, - en _ bevatten', 'error'); return; }
+  }
+  if(editingNum === null && configData.channels.some(c=>c.num===num)){
+    toast(`Kanaalnummer ${num} bestaat al`, 'error'); return;
+  }
+
+  const chData = {
+    num, name,
+    url: type === 'remote' ? url : '',
+    type,
+    stream_key: type === 'local' ? streamKey : null,
+    is_start_channel: type === 'local' ? isStartChannel : false,
+    splash_interval: type === 'local' ? (numOrNull('m-splash-interval') ?? 8) : null,
+    logo: editingNum ? (configData.channels.find(c=>c.num===editingNum)?.logo ?? null) : null,
+    tvg_id: strOrNull('m-tvg') || '',
+    notes: strOrNull('m-notes') || '',
+    poll_interval: numOrNull('m-poll'),
+    active_ttl: numOrNull('m-ttl'),
+    upstream_timeout: numOrNull('m-utimeout'),
+    fetch_timeout: numOrNull('m-ftimeout'),
+    user_agent: strOrNull('m-ua'),
+  };
+
+  const btn = document.getElementById('btn-modal-save');
+  btn.disabled = true; btn.textContent = 'Bezig…';
+  try {
+    // 1. Logo eerst uploaden indien gewijzigd (werkt los van config-herstart)
+    if(logoFile){
+      const buf = await logoFile.arrayBuffer();
+      const r = await fetch(`${API}/logo?ch=${num}`, {
+        method: 'POST',
+        headers: {'Content-Type': logoFile.type || 'application/octet-stream'},
+        body: buf
+      });
+      const j = await readJsonOrThrow(r);
+      if(!r.ok) throw new Error(j.error || 'Logo-upload mislukt');
+      chData.logo = j.path;
+    }
+
+    // 2. Splash-afbeeldingen uploaden (lokale kanalen)
+    if(type === 'local' && splashFiles.length){
+      for(const f of splashFiles){
+        const buf = await f.arrayBuffer();
+        const r = await fetch(`${API}/splash?ch=${num}`, {
+          method: 'POST',
+          headers: {'Content-Type': f.type || 'application/octet-stream'},
+          body: buf
+        });
+        const j = await readJsonOrThrow(r);
+        if(!r.ok) throw new Error(j.error || 'Splash-upload mislukt');
+      }
+    }
+
+    // 3. Kanaal toevoegen/bijwerken in lokale config en opslaan
+    let channels = configData.channels.slice();
+    if(isStartChannel){
+      channels = channels.map(c => c.num === num ? c : { ...c, is_start_channel: false });
+    }
+    if(editingNum === null){
+      channels.push(chData);
+    } else {
+      channels = channels.map(c => c.num === editingNum ? chData : c);
+    }
+    await saveConfig({ ...configData, channels }, `Kanaal ${num} opgeslagen — proxy herstart…`);
+    modalBg.classList.remove('open');
+  } catch(err){
+    toast(err.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Opslaan';
+  }
+});
+
+document.getElementById('btn-add-channel').addEventListener('click', ()=> openModal(null));
+
+async function deleteChannel(num){
+  const ch = configData.channels.find(c=>c.num===num);
+  if(!confirm(`Kanaal ${num} "${ch?.name}" verwijderen?\n\nDit verwijdert het kanaal uit de zenderlijst en herstart de proxy.`)) return;
+  const channels = configData.channels.filter(c=>c.num !== num);
+  await saveConfig({ ...configData, channels }, `Kanaal ${num} verwijderd — proxy herstart…`);
+}
+
+// ── Opslaan & laden ──────────────────────────────────────────────────────────
+async function saveConfig(newConfigLike, successMsg){
+  const payload = {
+    global: newConfigLike.global,
+    channels: newConfigLike.channels.map(({num,name,url,type,stream_key,is_start_channel,splash_interval,logo,tvg_id,notes,poll_interval,active_ttl,upstream_timeout,fetch_timeout,user_agent})=>
+      ({num,name,url,type,stream_key,is_start_channel,splash_interval,logo,tvg_id,notes,poll_interval,active_ttl,upstream_timeout,fetch_timeout,user_agent}))
+  };
+  const r = await fetch(`${API}/config`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(payload)
+  });
+  const j = await readJsonOrThrow(r);
+  if(!r.ok) throw new Error(j.error || 'Opslaan mislukt');
+  toast(successMsg || 'Opgeslagen — proxy herstart…', 'success');
+  // Even wachten tot het proces herstart is, dan verse config ophalen
+  setTimeout(loadConfig, 4000);
+  return j;
+}
+
+document.getElementById('btn-save-global').addEventListener('click', async ()=>{
+  const btn = document.getElementById('btn-save-global');
+  btn.disabled = true; btn.textContent = 'Bezig…';
+  try{
+    const g = collectGlobalFields();
+    await saveConfig({ ...configData, global: g }, 'Globale instellingen opgeslagen — proxy herstart…');
+  } catch(err){
+    toast(err.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Globale instellingen opslaan';
+  }
+});
+
+document.getElementById('ch-filter').addEventListener('input', e=> renderChannelTable(e.target.value));
+
+async function loadConfig(){
+  try{
+    const r = await fetch(`${API}/config?t=`+Date.now());
+    configData = await readJsonOrThrow(r);
+    renderGlobalFields();
+    renderChannelTable(document.getElementById('ch-filter').value);
+  } catch(err){
+    toast('Kon configuratie niet laden — proxy herstart mogelijk nog bezig…', 'error');
+  }
+}
+
+loadConfig();
+</script>
+</body>
+</html>

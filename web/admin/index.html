@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Camping TV — Admin Monitor</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#111;color:#e0e0e0;font-family:'Segoe UI',sans-serif;font-size:14px}
+header{background:#1a1a2e;padding:16px 24px;display:flex;align-items:center;gap:16px;border-bottom:1px solid #333}
+header img{height:36px;opacity:.85}
+header h1{font-size:1.2rem;font-weight:600;color:#fff}
+header .uptime{margin-left:auto;color:#888;font-size:.85rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;padding:20px}
+.card{background:#1e1e1e;border:1px solid #2a2a2a;border-radius:8px;padding:16px}
+.card h3{font-size:.75rem;text-transform:uppercase;color:#888;letter-spacing:.05em;margin-bottom:8px}
+.card .val{font-size:1.8rem;font-weight:700;color:#fff;line-height:1}
+.card .sub{font-size:.75rem;color:#666;margin-top:4px}
+.bar-wrap{background:#2a2a2a;border-radius:4px;height:6px;margin-top:8px;overflow:hidden}
+.bar{height:100%;border-radius:4px;transition:width .5s}
+.bar.cpu{background:#e06c75}
+.bar.mem{background:#61afef}
+.bar.disk{background:#98c379}
+.bar.cache{background:#e5c07b}
+section{padding:0 20px 20px}
+section h2{font-size:.9rem;text-transform:uppercase;color:#666;letter-spacing:.08em;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #2a2a2a}
+.chart-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+canvas{background:#1e1e1e;border:1px solid #2a2a2a;border-radius:8px;width:100%;height:160px}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;padding:6px 10px;font-size:.75rem;text-transform:uppercase;color:#666;border-bottom:1px solid #2a2a2a}
+td{padding:7px 10px;border-bottom:1px solid #1a1a1a;font-size:.85rem}
+.ch-logo{width:32px;height:22px;object-fit:contain;vertical-align:middle;opacity:.85}
+.td-logo{display:flex;align-items:center;gap:8px}
+tr:hover td{background:#252525}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px}
+.dot.on{background:#98c379}
+.dot.off{background:#555}
+.refresh{position:fixed;bottom:16px;right:16px;background:#333;border:none;color:#aaa;padding:8px 14px;border-radius:6px;cursor:pointer;font-size:.8rem}
+.refresh:hover{background:#444;color:#fff}
+.net-row{display:flex;gap:12px}
+.net-row .card{flex:1}
+</style>
+</head>
+<body>
+<header>
+  <img src="/logo.png" alt="Zwanemeer">
+  <h1>Camping TV Monitor <span style="font-size:.7rem;font-weight:400;color:#666;text-transform:none;letter-spacing:0">— STC-TV by DVC-it</span></h1>
+  <span class="uptime" id="uptime">laden…</span>
+  <a href="/admin/editor.html" style="color:#888;text-decoration:none;font-size:.85rem;border:1px solid #444;padding:6px 14px;border-radius:6px">⚙ Kanaal Editor</a>
+</header>
+
+<div class="grid">
+  <div class="card">
+    <h3>CPU</h3>
+    <div class="val" id="cpu">—</div><div class="sub">processor gebruik</div>
+    <div class="bar-wrap"><div class="bar cpu" id="bar-cpu" style="width:0%"></div></div>
+  </div>
+  <div class="card">
+    <h3>Geheugen</h3>
+    <div class="val" id="mem">—</div><div class="sub" id="mem-sub">—</div>
+    <div class="bar-wrap"><div class="bar mem" id="bar-mem" style="width:0%"></div></div>
+  </div>
+  <div class="card">
+    <h3>Schijf</h3>
+    <div class="val" id="disk">—</div><div class="sub" id="disk-sub">—</div>
+    <div class="bar-wrap"><div class="bar disk" id="bar-disk" style="width:0%"></div></div>
+  </div>
+  <div class="card">
+    <h3>Segment cache</h3>
+    <div class="val" id="cache-hit">—</div><div class="sub" id="cache-sub">—</div>
+    <div class="bar-wrap"><div class="bar cache" id="bar-cache" style="width:0%"></div></div>
+  </div>
+  <div class="card">
+    <h3>Download (internet)</h3>
+    <div class="val" id="rx">—</div><div class="sub" id="rx-total">—</div>
+  </div>
+  <div class="card">
+    <h3>Upload (LAN)</h3>
+    <div class="val" id="tx">—</div><div class="sub" id="tx-total">—</div>
+  </div>
+  <div class="card">
+    <h3>Actieve verbindingen</h3>
+    <div class="val" id="conns">—</div><div class="sub">gelijktijdige requests</div>
+  </div>
+  <div class="card">
+    <h3>M3U8 requests</h3>
+    <div class="val" id="req-m3u8">—</div><div class="sub">playlist ophalen</div>
+  </div>
+  <div class="card">
+    <h3>Segment requests</h3>
+    <div class="val" id="req-seg">—</div><div class="sub">video segmenten</div>
+  </div>
+</div>
+
+<section>
+  <h2>Netwerk verloop</h2>
+  <div class="chart-row">
+    <div><canvas id="chart-rx" title="Download (internet)"></canvas><div style="text-align:center;font-size:.7rem;color:#666;margin-top:4px">Download van internet (KB/s)</div></div>
+    <div><canvas id="chart-tx" title="Upload (LAN)"></canvas><div style="text-align:center;font-size:.7rem;color:#666;margin-top:4px">Upload naar kijkers (KB/s)</div></div>
+  </div>
+</section>
+
+<section>
+  <h2>Actieve kijkers <span id="viewer-count" style="font-size:.8rem;color:#4a9fd4;text-transform:none;font-weight:400;margin-left:8px"></span></h2>
+  <table>
+    <thead>
+      <tr>
+        <th>IP adres</th><th>Kanaal</th><th>Laatste activiteit</th>
+        <th>Segmenten</th><th>Bytes ontvangen</th>
+      </tr>
+    </thead>
+    <tbody id="viewer-table"></tbody>
+  </table>
+</section>
+
+<section>
+  <h2>Kanalen</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th><th>Naam</th><th>Status</th><th>Laatste activiteit</th>
+        <th>Requests</th><th>Bytes in (internet)</th><th>Bytes uit (kijkers)</th>
+      </tr>
+    </thead>
+    <tbody id="ch-table"></tbody>
+  </table>
+</section>
+
+<button class="refresh" onclick="fetchStats()">↻ Verversen</button>
+
+<script>
+const HISTORY_LEN = 60;
+const rxHist = new Array(HISTORY_LEN).fill(0);
+const txHist = new Array(HISTORY_LEN).fill(0);
+
+function fmt(bytes){
+  if(bytes===null||bytes===undefined) return '—';
+  if(bytes<1024)   return bytes+'B';
+  if(bytes<1048576) return (bytes/1024).toFixed(1)+'KB';
+  if(bytes<1073741824) return (bytes/1048576).toFixed(1)+'MB';
+  return (bytes/1073741824).toFixed(2)+'GB';
+}
+function fmtBps(b){
+  if(b<1024) return b+'B/s';
+  if(b<1048576) return (b/1024).toFixed(0)+'KB/s';
+  return (b/1048576).toFixed(1)+'MB/s';
+}
+function fmtUptime(s){
+  const h=Math.floor(s/3600), m=Math.floor((s%3600)/60), sec=s%60;
+  return `${h}u ${m}m ${sec}s`;
+}
+
+function drawChart(canvasId, data, color){
+  const canvas = document.getElementById(canvasId);
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.offsetWidth * (window.devicePixelRatio||1);
+  const H = canvas.offsetHeight * (window.devicePixelRatio||1);
+  canvas.width = W; canvas.height = H;
+  ctx.clearRect(0,0,W,H);
+  const max = Math.max(...data, 1);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5 * (window.devicePixelRatio||1);
+  ctx.beginPath();
+  data.forEach((v,i)=>{
+    const x = i / (data.length-1) * W;
+    const y = H - (v/max)*H*0.9 - H*0.05;
+    i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+  // fill under line
+  ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath();
+  ctx.fillStyle = color+'33';
+  ctx.fill();
+  // grid lines
+  ctx.strokeStyle = '#333'; ctx.lineWidth = 0.5;
+  [0.25,0.5,0.75].forEach(f=>{
+    const y = H - f*H*0.9 - H*0.05;
+    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke();
+    ctx.fillStyle='#555'; ctx.font=`${Math.max(9,10*(window.devicePixelRatio||1))}px sans-serif`;
+    ctx.fillText(fmtBps(max*f), 4, y-2);
+  });
+}
+
+function fetchStats(){
+  fetch('/stream/stats')
+    .then(r=>r.json())
+    .then(d=>{
+      // uptime
+      document.getElementById('uptime').textContent = 'Uptime: '+fmtUptime(d.uptime_s);
+      // CPU
+      document.getElementById('cpu').textContent = d.cpu_pct+'%';
+      document.getElementById('bar-cpu').style.width = d.cpu_pct+'%';
+      // Mem
+      document.getElementById('mem').textContent = d.mem.pct+'%';
+      document.getElementById('mem-sub').textContent = fmt(d.mem.used)+' / '+fmt(d.mem.total);
+      document.getElementById('bar-mem').style.width = d.mem.pct+'%';
+      // Disk
+      document.getElementById('disk').textContent = d.disk.pct+'%';
+      document.getElementById('disk-sub').textContent = fmt(d.disk.used)+' / '+fmt(d.disk.total);
+      document.getElementById('bar-disk').style.width = d.disk.pct+'%';
+      // Cache
+      document.getElementById('cache-hit').textContent = d.cache_hit_pct+'%';
+      document.getElementById('cache-sub').textContent = d.cache_segments+' segs / '+fmt(d.cache_bytes);
+      document.getElementById('bar-cache').style.width = Math.min(100, d.cache_segments/d.cache_max*100)+'%';
+      // Net
+      document.getElementById('rx').textContent = fmtBps(d.net.rx_bps);
+      document.getElementById('rx-total').textContent = 'totaal: '+fmt(d.bytes_in_total);
+      document.getElementById('tx').textContent = fmtBps(d.net.tx_bps);
+      document.getElementById('tx-total').textContent = 'totaal: '+fmt(d.bytes_out_total);
+      // Conns
+      document.getElementById('conns').textContent = d.active_conns;
+      document.getElementById('req-m3u8').textContent = d.req_m3u8;
+      document.getElementById('req-seg').textContent = d.req_seg;
+      // Charts
+      rxHist.push(d.net.rx_bps); rxHist.shift();
+      txHist.push(d.net.tx_bps); txHist.shift();
+      drawChart('chart-rx', rxHist, '#61afef');
+      drawChart('chart-tx', txHist, '#98c379');
+      // Kijkers tabel
+      const vbody = document.getElementById('viewer-table');
+      vbody.innerHTML = '';
+      document.getElementById('viewer-count').textContent = d.viewer_count + ' kijker(s)';
+      if(d.viewers && d.viewers.length){
+        d.viewers.forEach(v=>{
+          const row = document.createElement('tr');
+          const ago = v.last_seen_s < 3 ? 'Nu actief' : v.last_seen_s+'s geleden';
+          row.innerHTML = `
+            <td>${v.ip}</td>
+            <td><div class="td-logo"><img class="ch-logo" src="/logos/${v.ch}.png" alt="" onerror="this.style.visibility='hidden'">${v.ch_name}</div></td>
+            <td>${ago}</td>
+            <td>${v.seg_requests.toLocaleString('nl')}</td>
+            <td>${fmt(v.bytes_out)}</td>
+          `;
+          vbody.appendChild(row);
+        });
+      } else {
+        vbody.innerHTML = '<tr><td colspan="5" style="color:#555;text-align:center">Geen actieve kijkers</td></tr>';
+      }
+      // Kanalen tabel
+      const tbody = document.getElementById('ch-table');
+      tbody.innerHTML = '';
+      d.channels.forEach(ch=>{
+        const row = document.createElement('tr');
+        const lastSeen = ch.last_seen!==null ? (ch.last_seen<5?'Nu actief':ch.last_seen+'s geleden') : 'Nooit';
+        row.innerHTML = `
+          <td>${ch.num}</td>
+          <td><div class="td-logo"><img class="ch-logo" src="/logos/${ch.num}.png" alt="" onerror="this.style.visibility='hidden'">${ch.name}</div></td>
+          <td><span class="dot ${ch.active?'on':'off'}"></span>${ch.active?'Actief':'Inactief'}</td>
+          <td>${lastSeen}</td>
+          <td>${ch.requests.toLocaleString('nl')}</td>
+          <td>${fmt(ch.bytes_in)}</td>
+          <td>${fmt(ch.bytes_out)}</td>
+        `;
+        tbody.appendChild(row);
+      });
+    })
+    .catch(e=>console.error('Stats fout:', e));
+}
+
+fetchStats();
+setInterval(fetchStats, 3000);
+window.addEventListener('resize', ()=>{
+  drawChart('chart-rx', rxHist, '#61afef');
+  drawChart('chart-tx', txHist, '#98c379');
+});
+</script>
+</body>
+</html>

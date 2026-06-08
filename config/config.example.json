@@ -1,0 +1,44 @@
+{
+  "global": {
+    "seg_cache_max": 60,
+    "poll_interval": 6,
+    "active_ttl": 120,
+    "upstream_timeout": 15,
+    "fetch_timeout": 20,
+    "user_agent": "VLC/3.0 LibVLC/3.0"
+  },
+  "channels": [
+    {
+      "num": 1,
+      "name": "Voorbeeld kanaal (extern)",
+      "url": "http://voorbeeld.bron.nl/live/STREAM_ID/index.m3u8",
+      "type": "remote",
+      "is_start_channel": false,
+      "logo": null,
+      "tvg_id": "",
+      "notes": "Vul hier je eigen IPTV/stream-bronnen in via de admin-editor (/admin/editor.html). Dit bestand is alleen een leeg startpunt — voer GEEN echte inloggegevens in via git.",
+      "poll_interval": null,
+      "active_ttl": null,
+      "upstream_timeout": null,
+      "fetch_timeout": null,
+      "user_agent": null
+    },
+    {
+      "num": 2,
+      "name": "Info Kanaal (OBS)",
+      "url": "",
+      "type": "local",
+      "stream_key": "local2",
+      "is_start_channel": true,
+      "splash_interval": 8,
+      "logo": null,
+      "tvg_id": "",
+      "notes": "Voorbeeld van een lokaal narrowcasting-kanaal: publiceer in OBS naar rtmp://<server-ip>/local2",
+      "poll_interval": null,
+      "active_ttl": null,
+      "upstream_timeout": null,
+      "fetch_timeout": null,
+      "user_agent": null
+    }
+  ]
+}

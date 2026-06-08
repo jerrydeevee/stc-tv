@@ -1,0 +1,17 @@
+# Servereigen / geheime bestanden — nooit naar git
+config/config.json
+*.htpasswd
+*.crt
+*.key
+secrets.json
+.env
+
+# Logo's en splash-afbeeldingen zijn per-locatie content, geen broncode
+web/logos/
+web/splash/
+
+# Diversen
+*.log
+__pycache__/
+*.pyc
+.DS_Store

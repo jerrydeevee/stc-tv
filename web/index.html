@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Camping TV — Zwanemeer</title>
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="icon" type="image/png" href="/logo.png">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #000;
+      color: #fff;
+      font-family: 'Segoe UI', sans-serif;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── Video binnen wrapper ── */
+    #player {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background: #000;
+      display: block;
+    }
+
+    /* ── Top bar ── */
+    #topbar {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 16px;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, transparent 100%);
+      opacity: 1;
+      transition: opacity 0.4s ease;
+    }
+    #topbar.hidden { opacity: 0; pointer-events: none; }
+    #topbar > * { pointer-events: auto; }
+
+    #menu-btn {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px;
+      color: #fff;
+      cursor: pointer;
+      font-size: 1.1rem;
+      padding: 7px 11px;
+      line-height: 1;
+      transition: background 0.2s;
+      backdrop-filter: blur(6px);
+    }
+    #menu-btn:hover { background: rgba(255,255,255,0.18); }
+
+    #now-playing {
+      flex: 1;
+      min-width: 0;
+    }
+    #np-channel {
+      font-size: 0.7rem;
+      color: #4a9fd4;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      font-weight: 700;
+    }
+    #np-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    #np-meta {
+      font-size: 0.7rem;
+      color: #888;
+      margin-top: 1px;
+    }
+    #np-next {
+      font-size: 0.68rem;
+      color: #555;
+    }
+
+    #status {
+      font-size: 0.72rem;
+      color: rgba(255,255,255,0.45);
+      white-space: nowrap;
+    }
+
+    #unmute-btn {
+      display: none;
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 15;
+      background: rgba(0,0,0,0.72);
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 50px;
+      color: #fff;
+      font-size: 1.1rem;
+      padding: 14px 28px;
+      cursor: pointer;
+      backdrop-filter: blur(8px);
+      transition: background 0.2s;
+    }
+    #unmute-btn:hover { background: rgba(74,159,212,0.5); }
+
+    #fs-btn {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px;
+      color: #fff;
+      cursor: pointer;
+      font-size: 1.2rem;
+      padding: 6px 10px;
+      line-height: 1;
+      transition: background 0.2s;
+      backdrop-filter: blur(6px);
+      flex-shrink: 0;
+    }
+    #fs-btn:hover { background: rgba(255,255,255,0.18); }
+
+    /* ── Backdrop ── */
+    #backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      z-index: 19;
+      backdrop-filter: blur(2px);
+    }
+    #backdrop.open { display: block; }
+
+    /* ── Channel panel ── */
+    #panel {
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      width: 270px;
+      background: #141414;
+      border-right: 1px solid rgba(255,255,255,0.07);
+      z-index: 20;
+      display: flex;
+      flex-direction: column;
+      transform: translateX(-100%);
+      transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
+      overflow: hidden;
+    }
+    #panel.open { transform: translateX(0); }
+
+    #panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      flex-shrink: 0;
+    }
+    #panel-header h2 {
+      font-size: 0.8rem;
+      letter-spacing: 2px;
+      color: #666;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    #close-btn {
+      background: none;
+      border: none;
+      color: #666;
+      cursor: pointer;
+      font-size: 1.1rem;
+      line-height: 1;
+      padding: 4px;
+      border-radius: 4px;
+      transition: color 0.15s;
+    }
+    #close-btn:hover { color: #fff; }
+
+    #ch-list {
+      flex: 1;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: #333 transparent;
+    }
+    #ch-list::-webkit-scrollbar { width: 4px; }
+    #ch-list::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+
+    .ch-btn {
+      display: block;
+      width: 100%;
+      padding: 10px 16px 8px;
+      background: none;
+      border: none;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      color: #bbb;
+      text-align: left;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .ch-btn:hover { background: rgba(255,255,255,0.05); }
+    .ch-btn.active {
+      background: rgba(74,159,212,0.12);
+      border-left: 3px solid #4a9fd4;
+      padding-left: 13px;
+      color: #fff;
+    }
+    .ch-top { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+    .ch-num {
+      font-size: 0.62rem;
+      font-weight: 700;
+      opacity: 0.30;
+      min-width: 16px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+    .ch-logo {
+      width: 28px; height: 20px;
+      object-fit: contain;
+      flex-shrink: 0;
+      filter: brightness(0.9);
+    }
+    .ch-btn.active .ch-logo { filter: brightness(1.1); }
+    .ch-name { font-size: 0.88rem; font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .epg-now {
+      font-size: 0.71rem;
+      color: #ccc;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      padding-left: 52px;
+    }
+    .epg-time { font-size: 0.63rem; color: #666; padding-left: 52px; margin-bottom: 3px; }
+    .epg-bar-wrap { height: 2px; background: #222; border-radius: 2px; margin: 3px 0 3px 52px; }
+    .epg-bar { height: 2px; background: #4a9fd4; border-radius: 2px; transition: width 1s; }
+    .epg-next {
+      font-size: 0.63rem;
+      color: #555;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      padding-left: 52px;
+    }
+
+    /* ── Video wrapper (voor fullscreen met overlay) ── */
+    #video-wrap {
+      position: fixed;
+      inset: 0;
+      background: #000;
+      z-index: 1;
+    }
+    #video-wrap:-webkit-full-screen { width: 100%; height: 100%; }
+    #video-wrap:-moz-full-screen    { width: 100%; height: 100%; }
+    #video-wrap:fullscreen          { width: 100%; height: 100%; }
+
+    /* ── EPG overlay op video ── */
+    #epg-credit {
+      position: absolute; right: 10px; bottom: 6px;
+      font-size: 0.6rem; color: rgba(255,255,255,0.35);
+      letter-spacing: .03em; pointer-events: none;
+    }
+    #epg-overlay {
+      position: absolute;
+      bottom: 70px; left: 0; right: 0;
+      z-index: 9;
+      display: flex;
+      justify-content: center;
+      padding: 0 16px;
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+    #epg-overlay.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    #epg-inner {
+      position: relative;
+      background: rgba(0,0,0,0.35);
+      border: 1px solid rgba(74,159,212,0.25);
+      border-radius: 14px;
+      padding: clamp(14px, 3vw, 36px) clamp(16px, 4vw, 48px);
+      backdrop-filter: blur(10px);
+      width: min(92vw, 900px);
+    }
+    #epg-ch-header { display:flex; align-items:center; gap: clamp(8px,2vw,16px); margin-bottom: clamp(8px, 1.5vw, 16px); }
+    #epg-ch-logo { height: clamp(28px,5vw,52px); width: auto; object-fit:contain; filter: drop-shadow(0 1px 3px rgba(0,0,0,.6)); }
+    #epg-ch-name {
+      margin-bottom: 0;
+      font-size: clamp(0.9rem, 2.5vw, 1.8rem);
+      color: #4a9fd4;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      font-weight: 700;
+      margin-bottom: clamp(8px, 1.5vw, 16px);
+    }
+    .epg-ov-row { display: flex; align-items: baseline; gap: clamp(8px, 2vw, 20px); margin-bottom: 8px; flex-wrap: wrap; }
+    .epg-ov-label {
+      font-size: clamp(0.65rem, 1.5vw, 1.1rem);
+      color: #556;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      min-width: clamp(50px, 8vw, 90px);
+    }
+    .epg-ov-title { font-size: clamp(1rem, 3vw, 2.4rem); font-weight: 700; color: #fff; }
+    .epg-ov-time  { font-size: clamp(0.8rem, 2vw, 1.6rem); color: #4a9fd4; white-space: nowrap; }
+    #epg-ov-bar-wrap {
+      height: 4px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 6px;
+      margin: clamp(8px, 1.5vw, 18px) 0 clamp(6px, 1vw, 14px);
+    }
+    #epg-ov-bar { height: 4px; background: #4a9fd4; border-radius: 6px; transition: width 1s; }
+    .epg-ov-next { color: #888; }
+    .epg-ov-next .epg-ov-title { font-size: clamp(0.85rem, 2.5vw, 2rem); font-weight: 500; color: #aaa; }
+
+    /* ── Logo watermark ── */
+    #splash-overlay {
+      position: absolute; inset: 0; z-index: 6;
+      display: none; align-items: center; justify-content: center;
+      background: #000;
+      overflow: hidden;
+    }
+    #splash-overlay.visible { display: flex; }
+    .splash-img {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      object-fit: contain;
+      opacity: 0;
+      transition: opacity 1.2s ease;
+    }
+    .splash-img.shown { opacity: 1; }
+    #splash-msg {
+      position: absolute; bottom: 28px; left: 0; right: 0;
+      text-align: center; z-index: 2;
+      color: rgba(255,255,255,0.55);
+      font-size: 0.8rem; letter-spacing: 2px; text-transform: uppercase;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+    }
+    #logo-wm {
+      position: absolute;
+      z-index: 8;
+      opacity: 0.45;
+      pointer-events: none;
+      border-radius: 6px;
+      transition: top 0.3s, right 0.3s, width 0.3s;
+    }
+
+    /* ── VLC hint onderaan panel ── */
+    #panel-footer {
+      padding: 10px 16px;
+      border-top: 1px solid rgba(255,255,255,0.05);
+      font-size: 0.62rem;
+      color: #444;
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="video-wrap">
+    <video id="player" controls controlsList="nofullscreen" playsinline autoplay muted></video>
+
+    <!-- EPG overlay zit IN de wrapper → zichtbaar in fullscreen -->
+    <div id="epg-overlay">
+    <div id="epg-inner">
+      <div id="epg-ch-header"><img id="epg-ch-logo" src="" alt="" onerror="this.style.display='none'"><div id="epg-ch-name"></div></div>
+      <div class="epg-ov-row">
+        <span class="epg-ov-label">Nu</span>
+        <span class="epg-ov-title" id="epg-ov-now-title">–</span>
+        <span class="epg-ov-time"  id="epg-ov-now-time"></span>
+      </div>
+      <div id="epg-ov-bar-wrap"><div id="epg-ov-bar" style="width:0%"></div></div>
+      <div class="epg-ov-row epg-ov-next">
+        <span class="epg-ov-label">Daarna</span>
+        <span class="epg-ov-title" id="epg-ov-next-title">–</span>
+        <span class="epg-ov-time"  id="epg-ov-next-time"></span>
+      </div>
+      <div id="epg-credit">Software &amp; design: Jeroen J. de Vries</div>
+    </div>
+  </div>
+  <!-- Topbar, backdrop en panel zitten IN video-wrap → zichtbaar in fullscreen -->
+  <!-- Top overlay bar -->
+  <div id="topbar">
+    <button id="menu-btn" title="Zenders">☰</button>
+    <div id="now-playing">
+      <div id="np-channel"></div>
+      <div id="np-title">Kies een zender…</div>
+      <div id="np-meta"></div>
+      <div id="np-next"></div>
+    </div>
+    <div id="status"></div>
+    <button id="fs-btn" title="Volledig scherm">⛶</button>
+  </div>
+
+  <!-- Backdrop -->
+  <div id="backdrop"></div>
+
+  <!-- Slide-in channel panel -->
+  <div id="panel">
+    <div id="panel-header">
+      <h2>📺 Camping TV</h2>
+      <button id="close-btn" title="Sluiten">✕</button>
+    </div>
+    <div id="ch-list"></div>
+    <div id="panel-footer">VLC: http://10.0.1.132/stream/ch<b>N</b>/live.m3u8</div>
+  </div>
+
+  <div id="splash-overlay">
+    <img id="splash-img-a" class="splash-img" src="" alt="">
+    <img id="splash-img-b" class="splash-img" src="" alt="">
+    <div id="splash-msg">Geen actieve uitzending</div>
+  </div>
+  <img id="logo-wm" src="/logo.png" alt="">
+  <button id="unmute-btn">🔊 Klik voor geluid</button>
+  </div><!-- /video-wrap -->
+
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <script>
+  (function () {
+    let hls = null;
+    let currentCh = null;
+    let channels = [];
+    let epgData = null;
+    let watchdogTimer = null;
+    let lastFragTime = Date.now();
+    let localStatusTimer = null;
+    let slideshowTimer   = null;
+    let slideshowImages  = [];
+    let slideshowIdx     = 0;
+    let slideshowToggle  = false;
+
+    const splashOverlay = document.getElementById('splash-overlay');
+    const splashImgA    = document.getElementById('splash-img-a');
+    const splashImgB    = document.getElementById('splash-img-b');
+
+    function stopSplash() {
+      splashOverlay.classList.remove('visible');
+      if (slideshowTimer) { clearInterval(slideshowTimer); slideshowTimer = null; }
+      slideshowImages = [];
+    }
+
+    function startSplash(num, intervalSec) {
+      splashOverlay.classList.add('visible');
+      fetch('/stream/admin-api/splash?ch=' + num + '&t=' + Date.now())
+        .then(r => r.json())
+        .then(d => {
+          slideshowImages = (d.images || []);
+          slideshowIdx = 0;
+          slideshowToggle = false;
+          if (!slideshowImages.length) return;
+          const showNext = () => {
+            const img = slideshowToggle ? splashImgB : splashImgA;
+            const old = slideshowToggle ? splashImgA : splashImgB;
+            img.src = slideshowImages[slideshowIdx % slideshowImages.length];
+            img.classList.add('shown');
+            old.classList.remove('shown');
+            slideshowToggle = !slideshowToggle;
+            slideshowIdx++;
+          };
+          showNext();
+          if (slideshowTimer) clearInterval(slideshowTimer);
+          slideshowTimer = setInterval(showNext, Math.max(3, intervalSec || 8) * 1000);
+        })
+        .catch(() => {});
+    }
+
+    function watchLocalChannel(num, splashInterval) {
+      if (localStatusTimer) { clearInterval(localStatusTimer); localStatusTimer = null; }
+      let lastLive = null;
+      const check = () => {
+        fetch('/stream/ch/' + num + '/status?t=' + Date.now())
+          .then(r => r.json())
+          .then(d => {
+            if (currentCh !== num) return;
+            if (lastLive !== null && d.live !== lastLive) {
+              switchChannel(num);
+              return;
+            }
+            lastLive = d.live;
+            if (!d.live) {
+              if (!splashOverlay.classList.contains('visible')) startSplash(num, splashInterval);
+            }
+          })
+          .catch(() => {});
+      };
+      check();
+      localStatusTimer = setInterval(check, 5000);
+    }
+    const video     = document.getElementById('player');
+    const videoWrap = document.getElementById('video-wrap');
+    const unmuteBtn = document.getElementById('unmute-btn');
+
+    unmuteBtn.addEventListener('click', () => {
+      video.muted = false;
+      video.volume = 1;
+      unmuteBtn.style.display = 'none';
+    });
+    const panel    = document.getElementById('panel');
+    const backdrop = document.getElementById('backdrop');
+
+    // Fullscreen via eigen knop — maakt wrapper fullscreen zodat overlay mee gaat
+    const fsBtn = document.getElementById('fs-btn');
+    function toggleFullscreen() {
+      const fs = document.fullscreenElement || document.webkitFullscreenElement;
+      if (fs) {
+        (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+      } else {
+        const req = videoWrap.requestFullscreen || videoWrap.webkitRequestFullscreen;
+        if (req) req.call(videoWrap);
+      }
+    }
+    // ── Logo positionering binnen het werkelijke videobeeld ──────────────────
+    const logo = document.getElementById('logo-wm');
+
+    function positionLogo() {
+      const vw = video.videoWidth  || 16;
+      const vh = video.videoHeight || 9;
+      const cw = videoWrap.clientWidth;
+      const ch = videoWrap.clientHeight;
+      const videoAspect     = vw / vh;
+      const containerAspect = cw / ch;
+
+      let contentW, contentH, offsetX, offsetY;
+      if (containerAspect > videoAspect) {
+        // Zwarte balken links/rechts
+        contentH = ch;
+        contentW = ch * videoAspect;
+        offsetX  = (cw - contentW) / 2;
+        offsetY  = 0;
+      } else {
+        // Zwarte balken boven/onder
+        contentW = cw;
+        contentH = cw / videoAspect;
+        offsetX  = 0;
+        offsetY  = (ch - contentH) / 2;
+      }
+
+      const size  = Math.round(Math.min(contentW, contentH) * 0.07); // 7% van kortste zijde
+      const pad   = Math.round(contentW * 0.02);                      // 2% inspringing
+      logo.style.width  = size + 'px';
+      logo.style.right  = (offsetX + pad) + 'px';
+      logo.style.top    = (offsetY + pad + size * 0.9 - 19) + 'px';
+    }
+
+    video.addEventListener('loadedmetadata', positionLogo);
+    video.addEventListener('resize', positionLogo);
+    window.addEventListener('resize', positionLogo);
+    document.addEventListener('fullscreenchange', () => setTimeout(positionLogo, 200));
+    positionLogo();
+
+    fsBtn.addEventListener('click', toggleFullscreen);
+    function onFsChange() {
+      const inFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+      fsBtn.textContent = inFs ? '⤡' : '⛶';
+      fsBtn.title = inFs ? 'Venster' : 'Volledig scherm';
+    }
+    document.addEventListener('fullscreenchange', onFsChange);
+    document.addEventListener('webkitfullscreenchange', onFsChange);
+
+    // ── Panel open/sluiten ────────────────────────────────────────────────────
+    function openPanel() {
+      panel.classList.add('open');
+      backdrop.classList.add('open');
+      topbar.classList.remove('hidden');
+      if (topbarTimer) clearTimeout(topbarTimer);
+    }
+    function closePanel() {
+      panel.classList.remove('open');
+      backdrop.classList.remove('open');
+      // Start hide-timer opnieuw na sluiten panel
+      if (topbarTimer) clearTimeout(topbarTimer);
+      topbarTimer = setTimeout(() => topbar.classList.add('hidden'), 4000);
+    }
+
+    document.getElementById('menu-btn').addEventListener('click', () =>
+      panel.classList.contains('open') ? closePanel() : openPanel());
+    document.getElementById('close-btn').addEventListener('click', closePanel);
+    backdrop.addEventListener('click', closePanel);
+
+    // ── Kanaal wisselen ───────────────────────────────────────────────────────
+    function switchChannel(num) {
+      const ch = channels.find(c => c.num === num);
+      if (!ch) return;
+      currentCh = num;
+      closePanel();
+
+      if (localStatusTimer) { clearInterval(localStatusTimer); localStatusTimer = null; }
+      stopSplash();
+
+      document.querySelectorAll('.ch-btn').forEach(b => b.classList.remove('active'));
+      const btn = document.getElementById('btn' + num);
+      if (btn) {
+        btn.classList.add('active');
+        btn.scrollIntoView({ block: 'nearest' });
+      }
+
+      document.getElementById('np-channel').textContent = ch.name;
+      updateNowPlaying(num);
+
+      if (ch.type === 'local') {
+        fetch('/stream/ch/' + num + '/status?t=' + Date.now())
+          .then(r => r.json())
+          .then(d => {
+            if (currentCh !== num) return;
+            watchLocalChannel(num, ch.splash_interval);
+            if (d.live) {
+              loadHlsStream(num);
+            } else {
+              setStatus('');
+              startSplash(num, ch.splash_interval);
+              video.pause();
+              if (hls) { hls.stopLoad(); hls.detachMedia(); hls.destroy(); hls = null; }
+              video.removeAttribute('src');
+              video.load();
+            }
+          })
+          .catch(() => loadHlsStream(num));
+        return;
+      }
+
+      loadHlsStream(num);
+    }
+
+    function loadHlsStream(num) {
+      const ch = channels.find(c => c.num === num);
+      if (!ch || currentCh !== num) return;
+      stopSplash();
+
+      video.pause();
+      if (hls) { hls.stopLoad(); hls.detachMedia(); hls.destroy(); hls = null; }
+      video.removeAttribute('src');
+      video.load();
+
+      const src = '/stream/ch/' + num + '/live.m3u8';
+      setStatus('Verbinden…');
+
+      if (Hls.isSupported()) {
+        hls = new Hls({
+          enableWorker: true,
+          startPosition: -1,              // altijd starten bij live edge
+          liveSyncDurationCount: 2,
+          liveMaxLatencyDurationCount: 6,
+          liveBackBufferLength: 0,
+          maxBufferLength: 30,
+          maxMaxBufferLength: 60,
+          maxBufferHole: 0.5,
+          nudgeMaxRetry: 10,
+          maxFragLookUpTolerance: 0.5,
+          manifestLoadingTimeOut: 10000,
+          manifestLoadingMaxRetry: 8,
+          manifestLoadingRetryDelay: 1000,
+          levelLoadingTimeOut: 10000,
+          levelLoadingMaxRetry: 8,
+          fragLoadingTimeOut: 20000,
+          fragLoadingMaxRetry: 8,
+          lowLatencyMode: false,
+        });
+        hls.loadSource(src);
+        hls.attachMedia(video);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          // Zorg dat we altijd bij de live edge starten, max 2 min achterstand
+          const liveEdge = hls.liveSyncPosition || hls.playingDate;
+          if (liveEdge && video.duration && liveEdge < video.duration) {
+            video.currentTime = liveEdge;
+          }
+          video.muted = false;
+          video.play().then(() => {
+            unmuteBtn.style.display = 'none';
+          }).catch(() => {
+            // Browser blokkeert ongedempt autoplay — toon knop
+            video.muted = true;
+            video.play().catch(() => {});
+            unmuteBtn.style.display = 'block';
+          });
+          setStatus('');
+        });
+        hls.on(Hls.Events.ERROR, (e, data) => {
+          if (!data.fatal) return;
+          setStatus('Fout — opnieuw…');
+          if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+            setTimeout(() => { if (hls) hls.startLoad(); }, 3000);
+          } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+            hls.recoverMediaError();
+          } else {
+            setTimeout(() => switchChannel(currentCh), 5000);
+          }
+        });
+
+        lastFragTime = Date.now();
+        hls.on(Hls.Events.FRAG_LOADED, () => { lastFragTime = Date.now(); });
+        if (watchdogTimer) clearInterval(watchdogTimer);
+        watchdogTimer = setInterval(() => {
+          if (!hls) { clearInterval(watchdogTimer); watchdogTimer = null; return; }
+          if (Date.now() - lastFragTime > 25000) {
+            setStatus('Herverbinden…');
+            clearInterval(watchdogTimer); watchdogTimer = null;
+            setTimeout(() => switchChannel(currentCh), 2000);
+          }
+        }, 3000);
+
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = src;
+        video.play().catch(() => {});
+        setStatus('');
+      }
+    }
+
+    function setStatus(msg) { document.getElementById('status').textContent = msg; }
+
+    // ── Auto-hide topbar + EPG overlay bij muisbeweging ──────────────────────
+    const overlay    = document.getElementById('epg-overlay');
+    const topbar     = document.getElementById('topbar');
+    let overlayTimer = null;
+    let topbarTimer  = null;
+
+    function showUI() {
+      // Topbar tonen
+      topbar.classList.remove('hidden');
+      if (topbarTimer) clearTimeout(topbarTimer);
+      topbarTimer = setTimeout(() => {
+        // Verberg topbar niet als het panel open is
+        if (!panel.classList.contains('open')) topbar.classList.add('hidden');
+      }, 4000);
+
+      // EPG overlay tonen als er data is
+      if (!epgData || !currentCh) return;
+      const ch = epgData.channels[String(currentCh)];
+      if (!ch) return;
+      const _ch = channels.find(c => c.num === currentCh);
+      document.getElementById('epg-ch-name').textContent = _ch?.name || '';
+      const _logo = document.getElementById('epg-ch-logo');
+      _logo.src = '/logos/' + currentCh + '.png';
+      _logo.style.display = '';
+      document.getElementById('epg-ov-now-title').textContent  = ch.current.title;
+      document.getElementById('epg-ov-now-time').textContent   = ch.current.start + ' – ' + ch.current.stop;
+      document.getElementById('epg-ov-bar').style.width        = ch.current.progress + '%';
+      document.getElementById('epg-ov-next-title').textContent = ch.next ? ch.next.title : '–';
+      document.getElementById('epg-ov-next-time').textContent  = ch.next ? ch.next.start : '';
+      overlay.classList.add('visible');
+      if (overlayTimer) clearTimeout(overlayTimer);
+      overlayTimer = setTimeout(() => overlay.classList.remove('visible'), 4000);
+    }
+
+    videoWrap.addEventListener('mousemove', showUI);
+    videoWrap.addEventListener('touchstart', showUI, { passive: true });
+
+
+    // ── EPG ──────────────────────────────────────────────────────────────────
+    function updateNowPlaying(num) {
+      if (!epgData) return;
+      const ch = epgData.channels[String(num)];
+      if (!ch) return;
+      document.getElementById('np-title').textContent = ch.current.title;
+      document.getElementById('np-meta').textContent  = ch.current.start + ' – ' + ch.current.stop;
+      document.getElementById('np-next').textContent  = ch.next
+        ? '▶ ' + ch.next.title + '  ' + ch.next.start : '';
+    }
+
+    function loadEPG() {
+      fetch('/epg.json?t=' + Date.now())
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (!data) return;
+          epgData = data;
+          channels.forEach(ch => {
+            const epg = data.channels[String(ch.num)];
+            if (!epg) return;
+            const el = n => document.getElementById('epg' + ch.num + '-' + n);
+            if (el('title')) el('title').textContent = epg.current.title;
+            if (el('time'))  el('time').textContent  = epg.current.start + ' – ' + epg.current.stop;
+            if (el('bar'))   el('bar').style.width   = epg.current.progress + '%';
+            if (el('next'))  el('next').textContent  = epg.next ? '▶ ' + epg.next.title + ' ' + epg.next.start : '';
+          });
+          updateNowPlaying(currentCh);
+        }).catch(() => {});
+    }
+
+    // ── Kanalen laden ─────────────────────────────────────────────────────────
+    fetch('/channels.json')
+      .then(r => r.json())
+      .then(data => {
+        channels = data;
+        const list = document.getElementById('ch-list');
+        channels.forEach(ch => {
+          const btn = document.createElement('button');
+          btn.className = 'ch-btn';
+          btn.id = 'btn' + ch.num;
+          btn.onclick = () => switchChannel(ch.num);
+          btn.innerHTML = `
+            <div class="ch-top">
+              <span class="ch-num">${ch.num}</span>
+              <img class="ch-logo" src="/logos/${ch.num}.png" alt="" onerror="this.style.visibility='hidden'">
+              <span class="ch-name">${ch.name}</span>
+            </div>
+            <div class="epg-now" id="epg${ch.num}-title">–</div>
+            <div class="epg-time" id="epg${ch.num}-time"></div>
+            <div class="epg-bar-wrap"><div class="epg-bar" id="epg${ch.num}-bar" style="width:0%"></div></div>
+            <div class="epg-next" id="epg${ch.num}-next"></div>`;
+          list.appendChild(btn);
+        });
+
+        document.addEventListener('keydown', e => {
+          if (e.key === 'Escape') { closePanel(); return; }
+          const n = parseInt(e.key);
+          if (n >= 1 && n <= 9) switchChannel(n);
+        });
+
+        switchChannel(channels.find(c => c.is_start_channel)?.num ?? channels[0]?.num ?? 1);
+        loadEPG();
+        setInterval(loadEPG, 5 * 60 * 1000);
+      })
+      .catch(() => setStatus('Kanalenlijst niet geladen'));
+  })();
+  </script>
+</body>
+</html>

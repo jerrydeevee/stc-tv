@@ -1,0 +1,13 @@
+[Unit]
+Description=Camping TV HLS Proxy
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=python3 /opt/camping-tv/hls-proxy.py
+Restart=always
+RestartSec=3
+User=www-data
+
+[Install]
+WantedBy=multi-user.target
