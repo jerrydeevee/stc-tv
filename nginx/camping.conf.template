@@ -1,14 +1,14 @@
 # HTTP → HTTPS redirect
 server {
     listen 80;
-    server_name _;
+    server_name tv.zwanemeer.eu;
     return 301 https://$host$request_uri;
 }
 
 # HTTPS
 server {
     listen 443 ssl;
-    server_name _;
+    server_name tv.zwanemeer.eu;
 
     ssl_certificate     /etc/nginx/ssl/camping.crt;
     ssl_certificate_key /etc/nginx/ssl/camping.key;
